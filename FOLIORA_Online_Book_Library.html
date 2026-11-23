@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FOLIORA - Online Book Library</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--bg:#090909;--panel:#171717;--text:#f7f2e8;--muted:#b7ad9b;--accent:#d6ad55;--line:#4a3b20;--danger:#c84b55}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
+body.cyanine{--bg:#eafaff;--panel:#fff;--text:#123b49;--muted:#52717b;--accent:#079db5;--line:#b6e7ed;--danger:#c84b55}
+body.rose{--bg:#fff1f3;--panel:#fff;--text:#542a35;--muted:#90616d;--accent:#c85d78;--line:#f0c5d0;--danger:#b83248}
+header{padding:25px 15px;text-align:center;background:linear-gradient(135deg,#050505,#292012);border-bottom:2px solid #d6ad55}
+header h1{margin:0;color:#e6c16e;letter-spacing:4px;font-size:38px}header p{color:#eee0bd;margin:8px 0 0}
+nav{display:flex;justify-content:center;flex-wrap:wrap;background:var(--panel);padding:9px;position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line)}
+button{background:var(--accent);color:#15110a;border:0;padding:11px 14px;margin:4px;border-radius:8px;font-weight:bold;cursor:pointer}
+button.secondary{background:transparent;color:var(--text);border:1px solid var(--accent)}button.danger{background:var(--danger);color:white}
+main{max-width:1050px;margin:20px auto;padding:12px}section{display:none;background:var(--panel);padding:18px;margin-bottom:15px;border:1px solid var(--line);border-radius:13px}section.active{display:block}
+h2,h3{color:var(--accent)}input,select{width:100%;padding:12px;margin:8px 0;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text)}
+.password-row{display:flex;gap:5px}.password-row input{flex:1;min-width:0}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:12px}
+.book{border:1px solid var(--line);padding:11px;border-radius:10px;background:var(--bg)}.cover{height:175px;background:var(--panel);display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:7px;color:var(--muted)}.cover canvas{max-width:100%;max-height:100%}
+.small{font-size:13px;color:var(--muted)}.reader{text-align:center;background:var(--bg);padding:10px;overflow:auto;border-radius:8px}#pdfCanvas{max-width:100%;height:auto}
+.pill{display:inline-block;border:1px solid var(--accent);color:var(--accent);padding:4px 8px;border-radius:20px;font-size:12px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row>*{flex:1}
+footer{text-align:center;padding:22px;color:var(--muted)}#qrBox{background:white;padding:12px;display:inline-block;border-radius:10px;min-height:150px;min-width:150px}#qrBox img,#qrBox canvas{max-width:220px}
+hr{border:0;border-top:1px solid var(--line);margin:18px 0}
+@media(max-width:600px){nav button{flex:1 1 40%}section{padding:14px}}
+</style>
+</head>
+<body>
+<header><h1>FOLIORA</h1><p>Your Digital Book Library</p></header>
+<nav>
+<button onclick="show('home')">Home</button><button onclick="show('normal')">Normal Books</button>
+<button onclick="show('premium')">Premium Books</button><button onclick="show('purchases')">My Purchases</button>
+<button onclick="show('login')">Admin Login</button><button onclick="show('help')">Help</button>
+</nav>
+<main>
+<section id="home" class="active">
+<h2>Welcome to FOLIORA</h2><p>Discover, read and enjoy your favourite books.</p>
+<div class="row"><button onclick="show('normal')">Explore Free Books</button><button onclick="show('premium')">Explore Premium Books</button></div>
+<p class="small">Choose a section above to browse books.</p>
+</section>
+<section id="normal"><h2>Normal Books – Free</h2><input id="normalSearch" placeholder="Search free books..." oninput="renderBooks('normal')"><div id="normalBooks" class="grid"></div><p id="normalEmpty" class="small">No free books uploaded yet.</p></section>
+<section id="premium"><h2>Premium Books</h2><p class="small">Purchase a book to request access. The admin must verify the payment before it is unlocked.</p><input id="premiumSearch" placeholder="Search premium books..." oninput="renderBooks('premium')"><div id="premiumBooks" class="grid"></div><p id="premiumEmpty" class="small">No premium books uploaded yet.</p></section>
+<section id="purchases"><h2>My Purchases</h2><div id="myPurchases"></div><p class="small">Purchase records are stored in this browser on this device.</p></section>
+<section id="login"><h2>Admin Login</h2><div class="password-row"><input id="password" type="password" placeholder="Enter Admin Password"><button onclick="togglePassword()">👁️</button></div><button onclick="login()">Login</button><p id="message"></p></section>
+<section id="admin">
+<h2>Admin Panel</h2><h3>Upload a Book</h3>
+<input id="bookname" placeholder="Enter book name">
+<div class="row"><select id="bookType"><option value="normal">Normal / Free Book</option><option value="premium">Premium / Paid Book</option></select><input id="bookPrice" type="number" min="1" step="1" placeholder="Price in ₹ (premium only)"></div>
+<input id="file" type="file" accept="application/pdf"><button onclick="uploadBook()">Upload Book</button><p id="status" class="small"></p>
+<hr><h3>Manage Uploaded Books</h3><div id="adminBooks" class="grid"></div>
+<hr><h3>Premium Payment Requests</h3><p class="small">Check the UPI transaction reference in your payment app before approving a request.</p><div id="paymentRequests"></div>
+<button class="secondary" onclick="logout()">Logout</button>
+</section>
+<section id="payment">
+<h2 id="paymentTitle">Buy Premium Book</h2><p id="paymentPrice"></p>
+<p>Pay using PhonePe, Google Pay or another UPI app.</p>
+<p><b>UPI ID:</b> <span id="upiText">foliora.com@ibl</span></p>
+<div id="qrBox"></div><p class="small">Scan this QR using your UPI app. Confirm the payee name and amount in your app before paying.</p>
+<button class="secondary" onclick="copyUPI()">Copy UPI ID</button>
+<label for="txnRef">Enter UPI transaction reference / UTR after payment</label><input id="txnRef" placeholder="Enter transaction reference">
+<button onclick="submitPaymentRequest()">I Have Paid – Submit Request</button><p id="payStatus" class="small"></p>
+<button class="secondary" onclick="show('premium')">Back to Premium Books</button>
+</section>
+<section id="reader"><h2 id="readerTitle">Book Reader</h2>
+<button onclick="previousPage()">Previous</button><span id="pageInfo">Page 1</span><button onclick="nextPage()">Next</button>
+<button onclick="zoomOut()">− Zoom</button><button onclick="zoomIn()">+ Zoom</button><button onclick="closeReader()">Close</button>
+<div class="reader"><canvas id="pdfCanvas"></canvas></div></section>
+<section id="help"><h2>Help Center</h2><p>1. Browse Normal Books to read free books.</p><p>2. Browse Premium Books and select a book to purchase.</p><p>3. Pay by scanning the UPI QR code and submit your transaction reference.</p><p>4. Premium access is granted after admin payment verification.</p><p>For support: <a href="mailto:helpfoliora@gmail.com">helpfoliora@gmail.com</a></p></section>
+</main><footer>© 2026 FOLIORA</footer>
+<script>
+const ADMIN_PASSWORD="2000221641", DB_NAME="FolioraDB", UPI_ID="foliora.com@ibl";
+let db,pdfDoc=null,page=1,zoom=1.2,selectedPremiumId=null;
+pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+function openDB(){return new Promise((resolve,reject)=>{let r=indexedDB.open(DB_NAME,2);r.onupgradeneeded=()=>{let d=r.result;if(!d.objectStoreNames.contains("books"))d.createObjectStore("books",{keyPath:"id",autoIncrement:true});if(!d.objectStoreNames.contains("requests"))d.createObjectStore("requests",{keyPath:"id",autoIncrement:true})};r.onsuccess=()=>{db=r.result;resolve()};r.onerror=()=>reject(r.error)})}
+function show(id){document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));document.getElementById(id).classList.add("active");if(id==="normal"||id==="premium")renderBooks(id);if(id==="admin"){renderAdmin();renderRequests()}if(id==="purchases")renderPurchases()}
+function togglePassword(){let p=document.getElementById("password");p.type=p.type==="password"?"text":"password"}
+function login(){if(document.getElementById("password").value===ADMIN_PASSWORD){document.getElementById("message").textContent="Login successful";show("admin")}else document.getElementById("message").textContent="Incorrect password"}
+function logout(){document.getElementById("password").value="";show("home")}
+function getAll(store){return new Promise((res,rej)=>{let r=db.transaction(store).objectStore(store).getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+function addRecord(store,data){return new Promise((res,rej)=>{let r=db.transaction(store,"readwrite").objectStore(store).add(data);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function uploadBook(){let name=document.getElementById("bookname").value.trim(),file=document.getElementById("file").files[0],type=document.getElementById("bookType").value,price=Number(document.getElementById("bookPrice").value),status=document.getElementById("status");if(!name||!file){status.textContent="Enter a book name and choose a PDF.";return}if(file.type!=="application/pdf"){status.textContent="Please select a PDF file.";return}if(file.size>50*1024*1024){status.textContent="PDF must be below 50 MB.";return}if(type==="premium"&&(!price||price<1)){status.textContent="Enter a valid premium book price.";return}try{let data=await file.arrayBuffer();await pdfjsLib.getDocument({data:data.slice(0)}).promise;await addRecord("books",{name,filename:file.name,type,price:type==="premium"?price:0,data,created:Date.now()});status.textContent=(type==="premium"?"Premium":"Normal")+' book uploaded successfully!';document.getElementById("bookname").value="";document.getElementById("bookPrice").value="";document.getElementById("file").value="";renderAdmin()}catch(e){status.textContent="Could not read or save this PDF."}}
+async function renderBooks(type){let list=document.getElementById(type+"Books"),q=document.getElementById(type+"Search").value.toLowerCase(),empty=document.getElementById(type+"Empty");list.innerHTML="";let all=await getAll("books"),matches=all.filter(b=>b.type===type&&b.name.toLowerCase().includes(q));empty.style.display=matches.length?"none":"block";for(let b of matches){let card=document.createElement("div");card.className="book";let cover=document.createElement("div");cover.className="cover";cover.textContent="PDF Book";let title=document.createElement("h3");title.textContent=b.name;let tag=document.createElement("span");tag.className="pill";tag.textContent=type==="premium"?"PREMIUM · ₹"+b.price:"FREE";let btn=document.createElement("button");btn.textContent=type==="premium"?"Buy / Read":"Read Book";btn.onclick=()=>type==="premium"?startPurchase(b):openBook(b.id);card.append(cover,title,tag,btn);list.append(card);drawCover(b,cover)}}
+async function drawCover(b,el){try{let doc=await pdfjsLib.getDocument({data:b.data.slice(0)}).promise,p=await doc.getPage(1),v=p.getViewport({scale:.5}),c=document.createElement("canvas");c.width=v.width;c.height=v.height;await p.render({canvasContext:c.getContext("2d"),viewport:v}).promise;el.textContent="";el.append(c);doc.destroy()}catch(e){el.textContent="Preview unavailable"}}
+async function renderAdmin(){let list=document.getElementById("adminBooks");list.innerHTML="";for(let b of await getAll("books")){let card=document.createElement("div");card.className="book";let h=document.createElement("h3");h.textContent=b.name;let p=document.createElement("p");p.className="small";p.textContent=b.type==="premium"?"Premium · ₹"+b.price:"Normal · Free";let del=document.createElement("button");del.className="danger";del.textContent="Delete";del.onclick=async()=>{if(confirm("Delete this book?")){db.transaction("books","readwrite").objectStore("books").delete(b.id);renderAdmin()}};card.append(h,p,del);list.append(card)}}
+async function startPurchase(b){selectedPremiumId=b.id;document.getElementById("paymentTitle").textContent="Buy: "+b.name;document.getElementById("paymentPrice").textContent="Amount: ₹"+b.price;document.getElementById("txnRef").value="";document.getElementById("payStatus").textContent="";show("payment");let box=document.getElementById("qrBox");box.innerHTML="";let uri="upi://pay?pa="+encodeURIComponent(UPI_ID)+"&pn="+encodeURIComponent("FOLIORA")+"&am="+encodeURIComponent(b.price.toFixed(2))+"&cu=INR&tn="+encodeURIComponent("FOLIORA book "+b.id);if(window.QRCode)new QRCode(box,{text:uri,width:180,height:180});else box.textContent="QR library unavailable"}
+async function copyUPI(){try{await navigator.clipboard.writeText(UPI_ID);document.getElementById("payStatus").textContent="UPI ID copied"}catch(e){document.getElementById("payStatus").textContent="UPI ID: "+UPI_ID}}
+async function submitPaymentRequest(){let ref=document.getElementById("txnRef").value.trim();if(!ref){document.getElementById("payStatus").textContent="Please enter your UPI transaction reference.";return}let b=(await getAll("books")).find(x=>x.id===selectedPremiumId);if(!b)return;await addRecord("requests",{bookId:b.id,bookName:b.name,price:b.price,txnRef:ref,status:"pending",created:Date.now()});document.getElementById("payStatus").textContent="Request submitted. Admin verification is required before the book unlocks."}
+async function renderRequests(){let el=document.getElementById("paymentRequests");el.innerHTML="";for(let r of await getAll("requests")){let d=document.createElement("div");d.className="book";let p=document.createElement("p");p.textContent=r.bookName+" · ₹"+r.price+" · UTR: "+r.txnRef+" · "+r.status;d.append(p);if(r.status==="pending"){let ok=document.createElement("button");ok.textContent="Approve payment";ok.onclick=()=>updateRequest(r.id,"approved");let no=document.createElement("button");no.className="danger";no.textContent="Reject";no.onclick=()=>updateRequest(r.id,"rejected");d.append(ok,no)}el.append(d)}if(!el.children.length)el.textContent="No payment requests yet."}
+async function updateRequest(id,status){let tx=db.transaction("requests","readwrite"),store=tx.objectStore("requests"),r=store.get(id);r.onsuccess=()=>{r.result.status=status;store.put(r.result)};tx.oncomplete=()=>{renderRequests();renderPurchases()}}
+async function renderPurchases(){let el=document.getElementById("myPurchases");el.innerHTML="";let req=(await getAll("requests")).filter(r=>r.status==="approved");for(let r of req){let d=document.createElement("div");d.className="book";let p=document.createElement("p");p.textContent=r.bookName+" · Payment approved";let b=document.createElement("button");b.textContent="Read Book";b.onclick=()=>openBook(r.bookId);d.append(p,b);el.append(d)}if(!el.children.length)el.textContent="No approved premium purchases yet."}
+async function openBook(id){let b=(await getAll("books")).find(x=>x.id===id);if(!b)return;if(b.type==="premium"){let approved=(await getAll("requests")).some(r=>r.bookId===id&&r.status==="approved");if(!approved){alert("This premium book is locked. Complete payment and wait for admin approval.");return}}try{if(pdfDoc)await pdfDoc.destroy();pdfDoc=await pdfjsLib.getDocument({data:b.data.slice(0)}).promise;document.getElementById("readerTitle").textContent=b.name;page=1;zoom=1.2;show("reader");renderPage()}catch(e){alert("Could not open PDF.")}}
+async function renderPage(){if(!pdfDoc)return;let p=await pdfDoc.getPage(page),v=p.getViewport({scale:zoom}),c=document.getElementById("pdfCanvas");c.width=v.width;c.height=v.height;await p.render({canvasContext:c.getContext("2d"),viewport:v}).promise;document.getElementById("pageInfo").textContent="Page "+page+" / "+pdfDoc.numPages}
+function nextPage(){if(pdfDoc&&page<pdfDoc.numPages){page++;renderPage()}}function previousPage(){if(pdfDoc&&page>1){page--;renderPage()}}function zoomIn(){zoom=Math.min(zoom+.2,3);renderPage()}function zoomOut(){zoom=Math.max(zoom-.2,.5);renderPage()}
+async function closeReader(){if(pdfDoc){await pdfDoc.destroy();pdfDoc=null}show("normal")}
+function setTheme(t){document.body.classList.remove("cyanine","rose");if(t!=="gold")document.body.classList.add(t);localStorage.setItem("folioraTheme",t)}
+let theme=localStorage.getItem("folioraTheme")||"gold";setTheme(theme);
+openDB().catch(()=>alert("Browser storage unavailable. Please open this website in Chrome."));
+</script>
+</body></html>
